@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Kapa Video Review (V29.9-Phantom Samurai)</title>
+  <title>Kapa Sync Video Review (V29.9-Phantom Samurai)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
@@ -361,7 +361,7 @@
       <h2>SECURE PORTAL</h2>
       <p>Please enter your access key to begin.</p>
       <input type="password" id="gatePass" class="gate-input" placeholder="••••••••" autofocus>
-      <button onclick="unlockPortal()" class="gate-btn">Unlock</button>
+      <button onclick="unlockPortal()" class="gate-btn">Tahuna Te Ahi!</button>
       <div id="gateError" class="gate-error">Loading security database... Please wait.</div>
       <div class="gate-build-tag">v29.9 - Phantom Samurai Build</div>
     </div>
@@ -921,9 +921,13 @@
 
         refVideo.currentTime = 0;
         refVideo.play().then(() => {
-          mediaRecorder.start();
+          // A timeslice makes the recorder flush chunks periodically instead of
+          // writing everything as one giant blob on stop() - the single-blob
+          // path is more prone to a malformed/truncated tail on mobile, which is
+          // the classic cause of "freezes near the end, holds the last frame."
+          mediaRecorder.start(1000);
         }).catch(() => {
-          mediaRecorder.start();
+          mediaRecorder.start(1000);
         });
       } catch (err) {
         isRecordingMode = false;
@@ -943,6 +947,33 @@
       if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
       }
+    }
+
+    // MediaRecorder blobs (especially WebM on Chrome/Android) frequently report
+    // an incorrect duration - it can read as Infinity, or as a value that runs
+    // longer than the actual decodable content. Left as-is, the video appears
+    // to "freeze" on the last real frame while playback keeps counting up
+    // toward a duration that doesn't match what was actually recorded, right
+    // up until it finally fires 'ended'. Seeking near the very end forces the
+    // browser to recompute the real duration from the actual data - this is
+    // the standard, widely-used workaround for this specific browser behavior.
+    function fixRecordedVideoDuration(videoEl, timeoutMs = 2000) {
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          videoEl.removeEventListener('timeupdate', onTimeUpdate);
+          resolve(isFinite(videoEl.duration) ? videoEl.duration : 0);
+        };
+        const onTimeUpdate = () => {
+          videoEl.currentTime = 0;
+          finish();
+        };
+        videoEl.addEventListener('timeupdate', onTimeUpdate);
+        videoEl.currentTime = 1e101;
+        setTimeout(finish, timeoutMs); // safety net in case timeupdate never fires
+      });
     }
 
     function setupReviewModePipeline() {
@@ -1012,25 +1043,24 @@
       muteReviewBtn.classList.add('is-muted');
 
       reviewPlayer.onloadedmetadata = () => {
-        let recordedDuration = reviewPlayer.duration;
-        
-        if (recordedDuration === Infinity || recordedDuration === 0 || isNaN(recordedDuration)) {
-          recordedDuration = 0;
-        }
-        
-        scrubSlider.max = recordedDuration;
-        scrubSlider.value = 0;
-        updateTimeDisplayLabel(0);
-        masterTimeline.classList.add('show');
-        syncOffsetRow.classList.add('show');
-        
-        reviewPlayer.pause();
-        refVideo.currentTime = 0;
-        refVideo.pause();
+        fixRecordedVideoDuration(reviewPlayer).then((recordedDuration) => {
+          scrubSlider.max = recordedDuration;
+          scrubSlider.value = 0;
+          updateTimeDisplayLabel(0);
+          masterTimeline.classList.add('show');
+          syncOffsetRow.classList.add('show');
+
+          reviewPlayer.pause();
+          refVideo.currentTime = 0;
+          refVideo.pause();
+        });
       };
 
       reviewPlayer.onprogress = () => {
-        const validDuration = reviewPlayer.duration && isFinite(reviewPlayer.duration) && reviewPlayer.duration > 0;
+        // Cap out unreasonable values - during the duration-fix seek (currentTime
+        // jumped to 1e101), the browser can transiently report a huge/garbage
+        // duration before it settles on the real one.
+        const validDuration = reviewPlayer.duration && isFinite(reviewPlayer.duration) && reviewPlayer.duration > 0 && reviewPlayer.duration < 10800;
         const sliderMaxSet = parseFloat(scrubSlider.max);
         
         if (validDuration && (sliderMaxSet === 0 || Math.abs(scrubSlider.max - reviewPlayer.duration) > 0.1)) {
