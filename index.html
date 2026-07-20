@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Kapa Sync Video Review (V29.9-Phantom Samurai)</title>
+  <title>Kapa Sync Video Review (V30.0-Demon's Blade)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
@@ -226,13 +226,14 @@
     .ref-time-display { font-family: 'Marcellus', serif; font-size: 12px; color: #aaa; min-width: 35px; text-align: right; }
     
     .mute-btn-container { display: flex; align-items: center; justify-content: center; }
-    .mute-btn { font-family: 'Marcellus', serif; border: none; width: 90px; height: 32px; cursor: pointer; font-size: 12px; font-weight: bold; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.6); background-color: #444; border-radius: 6px; }
-    .mute-btn.is-muted { background-color: #ff453a; }
+    .mute-btn { font-family: 'Marcellus', serif; border: none; width: 90px; height: 32px; cursor: pointer; font-size: 12px; font-weight: bold; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.6); background: linear-gradient(135deg, #5c5c5e, #2c2c2e); border-radius: 6px; opacity: 0.9; transition: opacity 0.2s ease; }
+    .mute-btn:hover { opacity: 1.0; }
+    .mute-btn.is-muted { background: linear-gradient(135deg, #ff7a70, #cc2f26); }
     
     .controls-footer { height: 54px; display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; position: relative; flex-shrink: 0; width: 100%; }
     
     button.custom-png-btn, .custom-select-ui {
-      opacity: 0.85;
+      opacity: 0.9;
       transition: opacity 0.2s ease, transform 0.1s ease, filter 0.2s;
     }
     button.custom-png-btn:hover, .custom-select-ui:hover { opacity: 1.0; }
@@ -242,23 +243,23 @@
     button.custom-png-btn:disabled { filter: grayscale(1) opacity(0.4); cursor: not-allowed; transform: none; }
     button.custom-png-btn.hidden { display: none !important; }
     
-    #actionBtn { background-color: #007aff; border-radius: 8px; }
-    #actionBtn.btn-recording { background-color: #ff453a !important; }
+    #actionBtn { background: linear-gradient(135deg, #3396ff, #0056b3); border-radius: 8px; }
+    #actionBtn.btn-recording { background: linear-gradient(135deg, #ff7a70, #cc2f26) !important; }
     
-    #previewRefBtn { background-color: #5856d6; border-radius: 8px; }
-    #previewRefBtn.previewing { background-color: #ff9500 !important; }
+    #previewRefBtn { background: linear-gradient(135deg, #8280e0, #3f3da3); border-radius: 8px; }
+    #previewRefBtn.previewing { background: linear-gradient(135deg, #ffb347, #cc7700) !important; }
     
-    #resetBtn { background-color: #8e8e93; border-radius: 8px; display: none; }
-    #resetBtn.danger-active { background-color: #ff3b30; }
+    #resetBtn { background: linear-gradient(135deg, #b0b0b5, #6c6c70); border-radius: 8px; display: none; }
+    #resetBtn.danger-active { background: linear-gradient(135deg, #ff6f66, #cc2c23); }
     
-    #overlayToggleBtn { background-color: #e5e5ea; color: #1c1c1e; border-radius: 8px; text-shadow: none; }
-    #overlayToggleBtn.overlay-off { background-color: #444 !important; color: white !important; opacity: 0.7; }
+    #overlayToggleBtn { background: linear-gradient(135deg, #ffffff, #c7c7cc); color: #1c1c1e; border-radius: 8px; text-shadow: none; }
+    #overlayToggleBtn.overlay-off { background: linear-gradient(135deg, #5c5c5e, #2c2c2e) !important; color: white !important; opacity: 0.7; }
     
     .custom-select-ui {
       font-family: 'Marcellus', serif;
       width: 115px;
       height: 44px;
-      background-color: #3a3a3c;
+      background: linear-gradient(135deg, #505052, #2a2a2c);
       color: white;
       border: 1px solid #48484a;
       border-radius: 8px;
@@ -272,9 +273,9 @@
     .custom-select-ui.hidden { display: none !important; }
     .custom-select-ui:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    #downloadBtn { background-color: #34c759; border-radius: 8px; display: none; }
-    #downloadBtn.save-pending { background-color: #ff9500; }
-    #downloadBtn.save-error { background-color: #ff3b30; }
+    #downloadBtn { background: linear-gradient(135deg, #5ed17d, #248f41); border-radius: 8px; display: none; }
+    #downloadBtn.save-pending { background: linear-gradient(135deg, #ffb347, #cc7700); }
+    #downloadBtn.save-error { background: linear-gradient(135deg, #ff6f66, #cc2c23); }
 
     .sync-offset-row {
       width: 100%;
@@ -298,7 +299,7 @@
       height: 30px;
       border: none;
       border-radius: 6px;
-      background-color: #3a3a3c;
+      background: linear-gradient(135deg, #505052, #2a2a2c);
       color: white;
       font-size: 16px;
       font-weight: bold;
@@ -306,8 +307,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: filter 0.15s, transform 0.1s;
+      opacity: 0.9;
+      transition: filter 0.15s, transform 0.1s, opacity 0.2s ease;
     }
+    .offset-btn:hover { opacity: 1.0; }
     .offset-btn:active { transform: scale(0.94); filter: brightness(0.85); }
     .offset-value {
       font-family: 'Marcellus', serif;
@@ -361,9 +364,9 @@
       <h2>SECURE PORTAL</h2>
       <p>Please enter your access key to begin.</p>
       <input type="password" id="gatePass" class="gate-input" placeholder="••••••••" autofocus>
-      <button onclick="unlockPortal()" class="gate-btn">Tahuna Te Ahi!</button>
+      <button onclick="unlockPortal()" class="gate-btn">Tahuna Te Ahi</button>
       <div id="gateError" class="gate-error">Loading security database... Please wait.</div>
-      <div class="gate-build-tag">v29.9 - Phantom Samurai Build</div>
+      <div class="gate-build-tag">v30.0 - Demon's Blade Build</div>
     </div>
   </div>
 
@@ -434,19 +437,26 @@
         <option value="1.0">100%</option>
       </select>
       <button id="downloadBtn" class="custom-png-btn">Save</button>
-      <div class="version-tag">V29.9</div>
+      <div class="version-tag">V30.0</div>
     </div>
   </div>
 
   <script>
     const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1fxQrloklFsVMvy1-hf5kouhH1w0N_gaPy26uA5jT7S8/gviz/tq?tqx=out:csv";
-    const BUNNY_HLS_URL = "https://vz-1e14ed9f-aa1.b-cdn.net/ed64b70f-c2ab-4fd9-acde-98b43fa4868e/playlist.m3u8";
-    const THUMBNAIL_ASSET = "https://vz-1e14ed9f-aa1.b-cdn.net/ed64b70f-c2ab-4fd9-acde-98b43fa4868e/thumbnail.jpg";
+    // Fallback video shown if a user's sheet row leaves the HLS/Thumbnail columns blank.
+    const DEFAULT_HLS_URL = "https://vz-1e14ed9f-aa1.b-cdn.net/ed64b70f-c2ab-4fd9-acde-98b43fa4868e/playlist.m3u8";
+    const DEFAULT_THUMBNAIL_URL = "https://vz-1e14ed9f-aa1.b-cdn.net/ed64b70f-c2ab-4fd9-acde-98b43fa4868e/thumbnail.jpg";
+    // The video actually loaded for the current session - set per-user at unlock time.
+    let activeHlsUrl = DEFAULT_HLS_URL;
+    let activeThumbnailUrl = DEFAULT_THUMBNAIL_URL;
     
     let userDatabase = {}; 
     let authorizedUser = "";
     let watermarkTimer = null;
     let hlsInstance = null;
+    // Read from column F, row 1 of the sheet - lets the watermark's trailing tag
+    // (e.g. a season/date label) be changed from the sheet without touching code.
+    let watermarkTag = "07-2026";
 
     let webAudioContext = null;
     let webAudioSourceNode = null;
@@ -582,8 +592,69 @@
     const FFMPEG_CONVERT_TIMEOUT_MS = 120000;
 
     refVideo.addEventListener('loadstart', () => {
-      refVideo.setAttribute('poster', THUMBNAIL_ASSET);
+      refVideo.setAttribute('poster', activeThumbnailUrl);
     });
+
+    // The Reference Video box doesn't actually show the poster/thumbnail once
+    // playback has loaded - it shows a real decoded frame, paused at
+    // PRE_RECORD_ALIGN_TIME. The static thumbnail.jpg is a different moment in
+    // the clip (usually near the very start), so using it for the camera overlay
+    // guide made the two look mismatched. This captures the exact frame the
+    // reference video is actually paused on and uses that for the overlay instead,
+    // so they're always identical - and it stays correct automatically even if
+    // PRE_RECORD_ALIGN_TIME or the per-user video changes later.
+    function captureRefFrameForOverlay() {
+      try {
+        if (!refVideo.videoWidth || !refVideo.videoHeight) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = refVideo.videoWidth;
+        canvas.height = refVideo.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(refVideo, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        cameraOverlay.style.backgroundImage = `url('${dataUrl}')`;
+      } catch (e) {
+        // Likely a CORS-tainted canvas (source not serving proper CORS headers) -
+        // silently keep whatever background image is already set (the thumbnail
+        // fallback applied at unlock) rather than breaking anything.
+        console.warn('Overlay frame capture failed, keeping thumbnail fallback:', e);
+      }
+    }
+
+    // Fires every time refVideo finishes seeking. Only capture while idle (not
+    // recording/reviewing/previewing), which is exactly when setupInitialState()
+    // seeks to the alignment frame.
+    refVideo.addEventListener('seeked', () => {
+      if (!isReviewMode && !isRecordingMode && !isPreviewingRef) {
+        captureRefFrameForOverlay();
+      }
+    });
+
+    // Handles quoted fields (so commas inside a URL's query string, if any,
+    // don't get mistaken for column separators) - the naive .split(',') this
+    // replaces would silently mis-parse rows like that.
+    function parseCsvLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (inQuotes) {
+          if (char === '"') {
+            if (line[i + 1] === '"') { current += '"'; i++; }
+            else { inQuotes = false; }
+          } else {
+            current += char;
+          }
+        } else {
+          if (char === '"') { inQuotes = true; }
+          else if (char === ',') { result.push(current); current = ''; }
+          else { current += char; }
+        }
+      }
+      result.push(current);
+      return result.map(v => v.trim());
+    }
 
     async function fetchAccessDatabase() {
       try {
@@ -591,9 +662,31 @@
         if (!response.ok) throw new Error("Database sync failed");
         const csvText = await response.text();
         const lines = csvText.split(/\r?\n/);
+
+        // Cell F1 (row 1, column F / index 5) drives the watermark's trailing tag.
+        if (lines.length > 0 && lines[0].trim()) {
+          const headerColumns = parseCsvLine(lines[0]);
+          if (headerColumns[5]) watermarkTag = headerColumns[5].trim();
+        }
+
         lines.forEach(line => {
-          const columns = line.split(',').map(col => col.replace(/^"|"$/g, '').trim());
-          if (columns[0] && columns[1]) userDatabase[columns[0].toLowerCase()] = columns[1];
+          if (!line.trim()) return;
+          const columns = parseCsvLine(line);
+          const passcode = (columns[0] || '').toLowerCase();
+          const name = columns[1] || '';
+          const hlsUrl = (columns[2] || '').trim();
+          const thumbnailUrl = (columns[3] || '').trim();
+
+          if (!passcode || !name) return;
+          if (passcode === 'passcode' || passcode === 'passcodes') return; // skip a header row if present
+
+          // HLS URL/Thumbnail URL are optional per row - rows that leave them
+          // blank fall back to the default reference video.
+          userDatabase[passcode] = {
+            name,
+            hlsUrl: hlsUrl || null,
+            thumbnailUrl: thumbnailUrl || null
+          };
         });
         if (gateError) { gateError.style.display = 'none'; gateError.innerText = "Incorrect passcode. Please try again."; }
       } catch (err) {
@@ -605,11 +698,20 @@
     function unlockPortal() {
       const passInput = document.getElementById('gatePass');
       const input = passInput ? passInput.value.trim().toLowerCase() : "";
-      if (userDatabase[input]) {
-        authorizedUser = userDatabase[input];
+      const userRecord = userDatabase[input];
+      if (userRecord) {
+        authorizedUser = userRecord.name;
+        activeHlsUrl = userRecord.hlsUrl || DEFAULT_HLS_URL;
+        activeThumbnailUrl = userRecord.thumbnailUrl || DEFAULT_THUMBNAIL_URL;
+
         document.getElementById('passwordGate').style.display = 'none';
         document.getElementById('appContent').style.display = 'flex';
         signOutBtn.style.display = 'block';
+
+        // Apply this user's specific reference video's poster/thumbnail everywhere
+        // it's used - the video poster and the translucent camera alignment guide.
+        refVideo.setAttribute('poster', activeThumbnailUrl);
+        cameraOverlay.style.backgroundImage = `url('${activeThumbnailUrl}')`;
         
         if (Hls.isSupported()) {
           hlsInstance = new Hls({
@@ -664,10 +766,10 @@
             }
           });
 
-          hlsInstance.loadSource(BUNNY_HLS_URL);
+          hlsInstance.loadSource(activeHlsUrl);
           hlsInstance.attachMedia(refVideo);
         } else if (refVideo.canPlayType('application/vnd.apple.mpegurl')) {
-          refVideo.src = BUNNY_HLS_URL;
+          refVideo.src = activeHlsUrl;
         }
         startWatermarkEngine();
         initCamera();
@@ -687,8 +789,10 @@
       
       isRecordingMode = false; isReviewMode = false; isReviewPlaying = false; isPreviewingRef = false; recordedChunks = []; currentVideoBlob = null; chosenScale = 1; isSeeking = false; isConverting = false;
       pendingSaveBlob = null; pendingSaveFilename = null;
+      activeHlsUrl = DEFAULT_HLS_URL; activeThumbnailUrl = DEFAULT_THUMBNAIL_URL;
+      cameraOverlay.style.backgroundImage = '';
       if (reviewPlaybackUrl) { URL.revokeObjectURL(reviewPlaybackUrl); reviewPlaybackUrl = null; }
-      refVideo.pause(); refVideo.removeAttribute('src'); refVideo.setAttribute('poster', THUMBNAIL_ASSET); refVideo.load();
+      refVideo.pause(); refVideo.removeAttribute('src'); refVideo.setAttribute('poster', DEFAULT_THUMBNAIL_URL); refVideo.load();
       
       viewfinder.pause(); 
       viewfinder.srcObject = null;
@@ -724,7 +828,7 @@
     document.getElementById('gatePass').addEventListener('keypress', function(e) { if (e.key === 'Enter') unlockPortal(); });
 
     function startWatermarkEngine() {
-      watermarkEl.innerText = `${authorizedUser} • 07-2026`;
+      watermarkEl.innerText = `${authorizedUser} • ${watermarkTag}`;
       watermarkEl.style.display = 'block';
       const moveWatermark = () => {
         const container = refVideo.parentElement;
