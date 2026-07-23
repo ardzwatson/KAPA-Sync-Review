@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Kapa Sync Video Review (31.1-Raging Storm)</title>
+  <title>Kapa Sync Video Review (31.2-Raging Storm)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
@@ -14,7 +14,13 @@
   
   <style>
     body, html { 
-      margin: 0; height: 100dvh; width: 100%; box-sizing: border-box; background: #111; color: white; 
+      margin: 0; height: 100dvh; width: 100%; box-sizing: border-box; color: white; 
+      background-color: #111;
+      background-image: url('https://lh3.googleusercontent.com/d/1B2Dk1T1vTjx0QaqoJIPZs9wvx09M60AG');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       font-family: 'Marcellus', -apple-system, BlinkMacSystemFont, serif; overflow: hidden; display: flex; flex-direction: column;
       padding: env(safe-area-inset-top, 8px) 12px calc(env(safe-area-inset-bottom, 0px) + 8px) 12px;
     }
@@ -23,7 +29,7 @@
     #passwordGate {
       position: fixed;
       inset: 0;
-      background: #111;
+      background: rgba(17, 17, 17, 0.6);
       z-index: 9999;
       display: flex;
       flex-direction: column;
@@ -234,7 +240,7 @@
     #videoBox.ref-is-fullscreen .ref-fs-playpause-btn { display: flex; }
 
     .ref-volume-control {
-      display: none;
+      display: flex;
       position: absolute;
       bottom: 12px;
       left: 12px;
@@ -245,7 +251,6 @@
       border-radius: 20px;
       z-index: 20;
     }
-    #appContent.loop-only-mode .ref-volume-control { display: flex; }
     .ref-volume-btn {
       border: none;
       background: transparent;
@@ -585,7 +590,7 @@
     #videoHubScreen {
       position: fixed;
       inset: 0;
-      background: #111;
+      background: rgba(17, 17, 17, 0.7);
       z-index: 9998;
       display: none;
       flex-direction: column;
@@ -601,25 +606,61 @@
       justify-content: space-between;
       margin-bottom: 18px;
       flex-shrink: 0;
+      flex-wrap: nowrap;
+      gap: clamp(6px, 2vw, 12px);
+      min-width: 0;
+      width: 100%;
     }
     .hub-title {
       font-family: 'Marcellus', serif;
       color: white;
-      font-size: 20px;
+      /* Scales continuously with viewport width instead of wrapping onto a
+         second line when the actions on the right don't leave enough room. */
+      font-size: clamp(13px, 4.5vw, 20px);
       margin: 0;
       letter-spacing: 0.5px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .hub-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: clamp(4px, 1.5vw, 8px);
+      flex-shrink: 1;
+      flex-basis: content;
+      min-width: 0;
+    }
+    .hub-tag-filter {
+      font-family: 'Marcellus', serif;
+      font-size: clamp(9px, 2.6vw, 11px);
+      font-weight: bold;
+      color: white;
+      background: #1c1c1e;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      padding: clamp(5px, 1.5vw, 8px) clamp(6px, 2vw, 10px);
+      cursor: pointer;
+      outline: none;
+      flex-shrink: 1;
+      min-width: 0;
+      max-width: 30vw;
     }
     .hub-signout-btn {
       font-family: 'Marcellus', serif;
-      font-size: 11px;
+      font-size: clamp(9px, 2.6vw, 11px);
       font-weight: bold;
       color: #ff453a;
       background: transparent;
       border: 1px solid rgba(255, 69, 58, 0.3);
       border-radius: 6px;
-      padding: 8px 12px;
+      padding: clamp(5px, 1.5vw, 8px) clamp(7px, 2vw, 12px);
       cursor: pointer;
       flex-shrink: 0;
+      white-space: nowrap;
     }
     .hub-signout-btn:hover { background: rgba(255, 69, 58, 0.1); }
 
@@ -688,10 +729,10 @@
     <div class="gate-card">
       <h2>SECURE PORTAL</h2>
       <p>Please enter your access key to begin.</p>
-      <input type="text" id="gatePass" class="gate-input gate-input-masked" inputmode="text" pattern=".*" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Access Key" autofocus>
+      <input type="text" id="gatePass" class="gate-input gate-input-masked" inputmode="text" placeholder="Access Key" autofocus>
       <button onclick="unlockPortal()" class="gate-btn" id="unlockBtn">Tahuna Te Ahi</button>
       <div id="gateError" class="gate-error">Loading security database... Please wait.</div>
-      <div class="gate-build-tag">31.1 - Raging Storm Build</div>
+      <div class="gate-build-tag">31.2 - Raging Storm Build</div>
     </div>
   </div>
 
@@ -701,7 +742,12 @@
   <div id="videoHubScreen">
     <div class="hub-topbar">
       <h2 class="hub-title">🔥 Te Ahi Kā 🔥</h2>
-      <button id="hubSignOutBtn" class="hub-signout-btn">Sign Out</button>
+      <div class="hub-topbar-actions">
+        <select id="hubTagFilter" class="hub-tag-filter" aria-label="Filter by tag">
+          <option value="all">All</option>
+        </select>
+        <button id="hubSignOutBtn" class="hub-signout-btn">Sign Out</button>
+      </div>
     </div>
     <div class="hub-grid" id="hubGrid"></div>
   </div>
@@ -786,7 +832,7 @@
         <option value="1.0">100%</option>
       </select>
       <button id="downloadBtn" class="custom-png-btn">Save</button>
-      <div class="version-tag">31.1</div>
+      <div class="version-tag">31.2</div>
     </div>
   </div>
 
@@ -843,6 +889,7 @@
     const videoHubScreen = document.getElementById('videoHubScreen');
     const hubGrid = document.getElementById('hubGrid');
     const hubSignOutBtn = document.getElementById('hubSignOutBtn');
+    const hubTagFilter = document.getElementById('hubTagFilter');
 
     const viewfinder = document.getElementById('viewfinder');
     const reviewPlayer = document.getElementById('reviewPlayer');
@@ -1440,13 +1487,25 @@
           const isLoopOnly = (columns[6] || '').trim().toUpperCase() === 'TRUE';
           const noWatermark = (columns[7] || '').trim().toUpperCase() === 'TRUE';
 
+          // Column I: a short category/style tag shown on the clip's card and
+          // used to populate the Te Ahi Kā tag filter. Column J: an icon image
+          // URL overlaid on the thumbnail. Column K: hex colour applied to
+          // both the icon (via the card's tag text) - lets each tag have a
+          // distinct at-a-glance colour without hardcoding a palette in code.
+          const tag = (columns[8] || '').trim();
+          const icon = (columns[9] || '').trim();
+          const iconColor = (columns[10] || '').trim();
+
           clipLibrary[clipId] = {
             name: clipName,
             hlsUrl,
             thumbnailUrl: thumbnailUrl || null,
             thumbnailTime,
             isLoopOnly,
-            noWatermark
+            noWatermark,
+            tag,
+            icon,
+            iconColor
           };
         });
         console.info(`Video Library loaded: ${Object.keys(clipLibrary).length} clip(s) - [${Object.keys(clipLibrary).join(', ')}]`);
@@ -1557,7 +1616,10 @@
           thumbnailTime: (clip.thumbnailTime !== null && clip.thumbnailTime !== undefined) ? clip.thumbnailTime : DEFAULT_ALIGN_TIME,
           isDefault: false,
           isLoopOnly: !!clip.isLoopOnly,
-          noWatermark: !!clip.noWatermark
+          noWatermark: !!clip.noWatermark,
+          tag: clip.tag || '',
+          icon: clip.icon || '',
+          iconColor: clip.iconColor || '#ffffff'
         });
       });
 
@@ -1566,8 +1628,19 @@
 
 
 
-    function showVideoHub(userRecord) {
-      const cards = buildClipCards(userRecord);
+    // Cards from the most recent showVideoHub() call, kept around so the tag
+    // filter can re-render a subset without re-fetching or re-building from
+    // the user record each time.
+    let currentHubCards = [];
+
+    function populateTagFilter(cards) {
+      const uniqueTags = Array.from(new Set(cards.map(c => c.tag).filter(t => t))).sort((a, b) => a.localeCompare(b));
+      hubTagFilter.innerHTML = '<option value="all">All</option>' +
+        uniqueTags.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+      hubTagFilter.value = 'all';
+    }
+
+    function renderHubGrid(cards) {
       hubGrid.innerHTML = '';
 
       if (cards.length === 0) {
@@ -1575,40 +1648,57 @@
         msg.className = 'hub-empty-message';
         msg.textContent = 'No clips have been assigned to your account yet.';
         hubGrid.appendChild(msg);
-      } else {
-        cards.forEach(clip => {
-          const card = document.createElement('div');
-          card.className = 'hub-card' + (clip.isDefault ? ' hub-card-default' : '');
-
-          const thumb = document.createElement('div');
-          thumb.className = 'hub-card-thumb';
-          thumb.style.backgroundImage = `url('${clip.thumbnailUrl}')`;
-          card.appendChild(thumb);
-
-          const name = document.createElement('div');
-          name.className = 'hub-card-name';
-          name.textContent = clip.name;
-          card.appendChild(name);
-
-          if (clip.isDefault) {
-            const badge = document.createElement('div');
-            badge.className = 'hub-card-badge';
-            badge.textContent = 'Your Default';
-            card.appendChild(badge);
-          } else if (clip.isLoopOnly) {
-            const badge = document.createElement('div');
-            badge.className = 'hub-card-badge hub-card-badge-loop';
-            badge.textContent = 'Loop Practice';
-            card.appendChild(badge);
-          }
-
-          card.addEventListener('click', () => selectClipAndEnterApp(clip));
-          hubGrid.appendChild(card);
-        });
+        return;
       }
 
+      cards.forEach(clip => {
+        const card = document.createElement('div');
+        card.className = 'hub-card' + (clip.isDefault ? ' hub-card-default' : '');
+
+        const thumb = document.createElement('div');
+        thumb.className = 'hub-card-thumb';
+        thumb.style.backgroundImage = `url('${clip.thumbnailUrl}')`;
+        card.appendChild(thumb);
+
+        const name = document.createElement('div');
+        name.className = 'hub-card-name';
+        name.textContent = clip.name;
+        card.appendChild(name);
+
+        if (clip.isDefault) {
+          const badge = document.createElement('div');
+          badge.className = 'hub-card-badge';
+          badge.textContent = 'Your Default';
+          card.appendChild(badge);
+        } else if (clip.isLoopOnly) {
+          const badge = document.createElement('div');
+          badge.className = 'hub-card-badge hub-card-badge-loop';
+          badge.textContent = 'Loop Practice';
+          card.appendChild(badge);
+        }
+
+        card.addEventListener('click', () => selectClipAndEnterApp(clip));
+        hubGrid.appendChild(card);
+      });
+    }
+
+    function showVideoHub(userRecord) {
+      const cards = buildClipCards(userRecord);
+      currentHubCards = cards;
+      populateTagFilter(cards);
+      renderHubGrid(cards);
+      // The hub screen has its own dedicated Sign Out button (hubSignOutBtn);
+      // hide the persistent side-tab one while the hub is up so it can't
+      // ghost/bleed through the hub's semi-transparent background.
+      signOutBtn.style.display = 'none';
       videoHubScreen.classList.add('show');
     }
+
+    hubTagFilter.addEventListener('change', () => {
+      const selected = hubTagFilter.value;
+      const filtered = selected === 'all' ? currentHubCards : currentHubCards.filter(c => c.tag === selected);
+      renderHubGrid(filtered);
+    });
 
     function selectClipAndEnterApp(clip) {
       if (clip.isLoopOnly) {
@@ -1625,6 +1715,7 @@
       document.getElementById('appContent').style.display = 'flex';
       document.getElementById('appContent').classList.remove('loop-only-mode');
       changeClipBtn.style.display = 'block';
+      signOutBtn.style.display = 'block';
 
       // Apply this clip's poster/thumbnail everywhere it's used - the video
       // poster and the translucent camera alignment guide.
@@ -1660,6 +1751,7 @@
       document.getElementById('appContent').style.display = 'flex';
       document.getElementById('appContent').classList.add('loop-only-mode');
       changeClipBtn.style.display = 'block';
+      signOutBtn.style.display = 'block';
 
       refVideo.setAttribute('poster', activeThumbnailUrl);
       initializeReferenceVideoPlayback();
@@ -1733,7 +1825,6 @@
         currentPasscode = input;
 
         document.getElementById('passwordGate').style.display = 'none';
-        signOutBtn.style.display = 'block';
 
         showVideoHub(userRecord);
       } else {
