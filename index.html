@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Kapa Sync Video Review (31.4-Raging Storm)</title>
+  <title>Kapa Sync Video Review (31.5)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
@@ -361,6 +361,58 @@
     }
     .zoom-modal-btn:hover { background: rgba(255,255,255,0.22); }
     .zoom-modal-btn.zoom-modal-close { color: #ff453a; border-color: rgba(255,69,58,0.4); }
+
+    /* Chapter selection pills - Loop Practice only, and only for clips with
+       Show Chapters (Column M) checked AND at least one chapter actually
+       detected in the stream. Sits above the loop range track since chapter
+       taps directly drive that track's start/end. */
+    .ref-chapter-section {
+      display: none;
+      width: 100%;
+      flex-shrink: 0;
+      margin-bottom: 8px;
+    }
+    #appContent.loop-only-mode .ref-chapter-section.show { display: block; }
+    .ref-chapter-loading {
+      display: none;
+      font-family: 'Marcellus', serif;
+      font-size: 11px;
+      color: #8e8e93;
+      text-align: center;
+      padding: 6px 2px;
+    }
+    .ref-chapter-bar {
+      display: none;
+      width: 100%;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 0 2px;
+      flex-shrink: 0;
+    }
+    .ref-chapter-bar::-webkit-scrollbar { display: none; }
+    .ref-chapter-bar.show { display: flex; }
+    .ref-chapter-btn {
+      font-family: 'Marcellus', serif;
+      font-size: 10px;
+      font-weight: bold;
+      color: #ccc;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid #48484a;
+      border-radius: 14px;
+      padding: 6px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .ref-chapter-btn:hover { border-color: #777; color: white; }
+    .ref-chapter-btn.active {
+      background: linear-gradient(135deg, #ff9500, #cc7700);
+      color: white;
+      border-color: transparent;
+    }
 
     .ref-volume-control {
       display: flex;
@@ -855,7 +907,7 @@
       <input type="text" id="gatePass" class="gate-input gate-input-masked" inputmode="text" placeholder="Access Key" autofocus>
       <button onclick="unlockPortal()" class="gate-btn" id="unlockBtn">Tahuna Te Ahi</button>
       <div id="gateError" class="gate-error">Loading security database... Please wait.</div>
-      <div class="gate-build-tag">31.4 - Raging Storm Build</div>
+      <div class="gate-build-tag">31.5 Build</div>
     </div>
   </div>
 
@@ -933,6 +985,15 @@
       <div class="ref-time-display" id="refTimeLabel">0:00</div>
       <button type="button" class="ref-loop-reset-btn" id="refLoopResetBtn">Reset Loop</button>
     </div>
+
+    <!-- Chapter Selection UI - directly below the loop control sliders above.
+         Hidden entirely until a clip has Show Chapters (Column M) enabled;
+         shows a loading state while cues are still being detected, then
+         swaps to the pill buttons once chapters are found. -->
+    <div class="ref-chapter-section" id="refChapterSection">
+      <div class="ref-chapter-loading" id="refChapterLoading">Loading chapters...</div>
+      <div class="ref-chapter-bar" id="refChapterBar"></div>
+    </div>
     
     <div class="timeline-footer" id="masterTimeline">
       <input type="range" id="scrubSlider" class="timeline-slider" min="0" max="100" step="0.1" value="0">
@@ -965,7 +1026,7 @@
         <option value="1.0">100%</option>
       </select>
       <button id="downloadBtn" class="custom-png-btn">Save</button>
-      <div class="version-tag">31.4</div>
+      <div class="version-tag">31.5</div>
     </div>
   </div>
 
@@ -1032,6 +1093,9 @@
     const zoomModalImg = document.getElementById('zoomModalImg');
     const zoomModalResetBtn = document.getElementById('zoomModalResetBtn');
     const zoomModalCloseBtn = document.getElementById('zoomModalCloseBtn');
+    const refChapterBar = document.getElementById('refChapterBar');
+    const refChapterSection = document.getElementById('refChapterSection');
+    const refChapterLoading = document.getElementById('refChapterLoading');
     const refVolumeBtn = document.getElementById('refVolumeBtn');
     const refVolumeSlider = document.getElementById('refVolumeSlider');
     const gateError = document.getElementById('gateError');
@@ -1238,6 +1302,9 @@
           // Pause while dragging a loop marker so natural playback advancement
           // doesn't fight with the live-seek-to-follow-the-marker below.
           refVideo.pause();
+          // Manually adjusting the range no longer necessarily matches any
+          // chapter's boundaries, so drop the (now stale) chapter highlight.
+          clearChapterSelectionHighlight();
         }
 
         const onMove = (moveEvent) => {
@@ -1286,6 +1353,7 @@
     setupRefTrackDrag(refPlayheadHandle, 'playhead');
 
     refLoopResetBtn.addEventListener('click', () => {
+      clearChapterSelectionHighlight();
       resetLoopRange();
       if (isPreviewingRef && (refVideo.currentTime < loopStartTime || refVideo.currentTime > loopEndTime)) {
         refVideo.currentTime = loopStartTime;
@@ -1500,6 +1568,19 @@
       }
     });
 
+    // Robustly interprets a Google Sheets checkbox/boolean cell. Sheets
+    // exports checkboxes as the literal text TRUE/FALSE, but a cell can also
+    // legitimately arrive as a real boolean (if this were ever fed non-CSV
+    // data), or as "1"/"true" typed manually - all are treated as truthy so
+    // the Column M check can't silently miss a valid-but-differently-cased
+    // or differently-typed value.
+    function parseSheetBoolean(val) {
+      if (val === true) return true;
+      if (val === false || val === null || val === undefined) return false;
+      const normalized = val.toString().trim().toLowerCase();
+      return normalized === 'true' || normalized === '1';
+    }
+
     // Parses an entire CSV payload at once, rather than splitting into lines
     // first. This matters because a cell containing a line break (someone hit
     // Enter while typing a name, for example) gets wrapped in quotes by Google
@@ -1651,6 +1732,13 @@
           // position diagram, lyrics sheet) shown below the video player for
           // this clip. Blank = no image, container stays hidden.
           const referenceImage = (columns[11] || '').trim();
+          // Column M: checkbox - only render the Chapter Selection UI on the
+          // loop practice screen for clips that opt in.
+          const showChapters = parseSheetBoolean(columns[12]);
+          // Column N: Google Drive link to a .vtt file containing this
+          // clip's chapter markers. Fetched and parsed directly (rather than
+          // relying on chapters embedded in the HLS stream itself).
+          const chapterVttUrl = (columns[13] || '').trim();
 
           clipLibrary[clipId] = {
             name: clipName,
@@ -1662,7 +1750,9 @@
             tag,
             icon,
             iconColor,
-            referenceImage
+            referenceImage,
+            showChapters,
+            chapterVttUrl
           };
         });
         console.info(`Video Library loaded: ${Object.keys(clipLibrary).length} clip(s) - [${Object.keys(clipLibrary).join(', ')}]`);
@@ -2000,6 +2090,298 @@
       }
     });
 
+    // --- Chapter selection & multi-chapter range looping (Loop Practice only) ---
+    // Chapters are sourced from a WebVTT file linked in Column N (fetched and
+    // parsed directly), not from anything embedded in the HLS stream itself.
+    let detectedChapters = [];
+    let selectedChapterIndices = new Set();
+    let chapterShowFlagForClip = false;
+    let chapterFetchToken = 0; // invalidates a stale in-flight fetch if the clip changes mid-request
+
+    // Converts a Google Drive "view" share link into direct download URLs,
+    // returning both candidate forms (drive.google.com/uc?export=download is
+    // tried first, since that's the standard direct-download endpoint for
+    // arbitrary file types; the lh3 CDN form is tried second as a fallback).
+    // Non-Drive URLs are returned as a single candidate, unmodified. Every
+    // base candidate also gets a CORS-proxy-wrapped fallback appended right
+    // after it, since a direct browser fetch() to Drive (and many other
+    // third-party hosts) is commonly blocked by CORS even when the URL
+    // itself is publicly reachable.
+    function buildChapterVttUrlCandidates(rawUrl) {
+      if (!rawUrl) return [];
+      const trimmed = rawUrl.toString().trim();
+      if (!trimmed) return [];
+
+      const fileIdMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+        (trimmed.includes('drive.google.com') ? trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) : null);
+
+      let baseCandidates;
+      if (fileIdMatch && fileIdMatch[1]) {
+        const fileId = fileIdMatch[1];
+        baseCandidates = [
+          `https://drive.google.com/uc?export=download&id=${fileId}`,
+          `https://lh3.googleusercontent.com/d/${fileId}`
+        ];
+      } else {
+        baseCandidates = [trimmed];
+      }
+
+      const withProxies = [];
+      baseCandidates.forEach((url) => {
+        withProxies.push(url);
+        withProxies.push(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+        withProxies.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+      });
+      return withProxies;
+    }
+
+    // Converts a WebVTT timestamp ("HH:MM:SS.mmm" or "MM:SS.mmm") to total
+    // seconds. Per the WebVTT spec, the presence of an hours component is
+    // determined purely by how many colon-separated parts the timestamp has
+    // (3 parts = HH:MM:SS, 2 parts = MM:SS) - this is evaluated independently
+    // for every single timestamp, so a file can freely mix both formats
+    // (e.g. early short chapters as MM:SS.mmm, later ones past the one-hour
+    // mark as HH:MM:SS.mmm) without any chapter being misparsed.
+    function parseVttTimestampToSeconds(ts) {
+      const parts = ts.trim().split(':');
+      if (parts.length === 3) {
+        return (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseFloat(parts[2]) || 0);
+      }
+      if (parts.length === 2) {
+        return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
+      }
+      return parseFloat(parts[0]) || 0;
+    }
+
+    // Hand-rolled WebVTT parser: splits the file into blank-line-separated
+    // cue blocks, locates the "start --> end" timing line within each block
+    // (searched for rather than assumed to be the first line, since a block
+    // may start with an optional cue identifier), and treats every remaining
+    // line in that block as the chapter title/text.
+    function parseVttText(vttText) {
+      const chapters = [];
+      if (!vttText) return chapters;
+
+      const normalized = vttText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const blocks = normalized.split(/\n\s*\n/);
+      // Fractional seconds are matched as 1-3 digits (and optional entirely)
+      // rather than requiring exactly 3 - some export tools write 2-digit
+      // centisecond precision (e.g. "01:23.44") instead of milliseconds, and
+      // a stricter match would silently skip the whole cue block.
+      const timeLineRegex = /(\d{1,2}:)?\d{2}:\d{2}(\.\d{1,3})?\s*-->\s*(\d{1,2}:)?\d{2}:\d{2}(\.\d{1,3})?/;
+
+      blocks.forEach((block) => {
+        const lines = block.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+        if (lines.length === 0) return;
+        if (lines[0].toUpperCase().startsWith('WEBVTT')) return; // header block
+
+        const timeLineIndex = lines.findIndex((l) => timeLineRegex.test(l));
+        if (timeLineIndex === -1) return; // not a cue block (e.g. NOTE/STYLE)
+
+        const match = lines[timeLineIndex].match(/([\d:.]+)\s*-->\s*([\d:.]+)/);
+        if (!match) return;
+
+        const startTime = parseVttTimestampToSeconds(match[1]);
+        const endTime = parseVttTimestampToSeconds(match[2]);
+        const rawTitle = lines.slice(timeLineIndex + 1).join(' ').replace(/<[^>]*>/g, '').trim();
+
+        chapters.push({ title: rawTitle || `Chapter ${chapters.length + 1}`, startTime, endTime });
+      });
+
+      chapters.sort((a, b) => a.startTime - b.startTime);
+      return chapters;
+    }
+
+    // Tries each candidate URL in turn (direct-download form, lh3 CDN form,
+    // and CORS-proxy-wrapped variants of both) and returns the parsed
+    // chapters from whichever one succeeds first with a non-empty result.
+    // Non-OK responses, HTML pages served in place of the raw file (Google's
+    // "can't scan this file for viruses" confirmation page, most commonly),
+    // network errors, and VTT files that parse to zero cues are all treated
+    // as "try the next candidate" rather than a hard failure.
+    async function fetchAndParseChapterVtt(rawUrl) {
+      const candidates = buildChapterVttUrlCandidates(rawUrl);
+      for (const url of candidates) {
+        try {
+          const response = await fetch(url, { mode: 'cors' });
+          if (!response.ok) {
+            console.warn('[Chapters] VTT candidate returned non-OK status:', response.status, url);
+            continue;
+          }
+
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const text = await response.text();
+
+          // Google (and some proxies) can serve an HTML confirmation/warning
+          // page with a 200 status instead of the actual file contents -
+          // detect that by content-type first, and fall back to sniffing the
+          // body itself in case the header was missing/generic.
+          const looksLikeHtml = contentType.includes('text/html') ||
+            /^\s*<!doctype html/i.test(text) || /^\s*<html[\s>]/i.test(text);
+          if (looksLikeHtml) {
+            console.warn('[Chapters] VTT candidate returned an HTML page instead of VTT content (likely a Drive confirmation page):', url);
+            continue;
+          }
+
+          const chapters = parseVttText(text);
+          if (chapters.length > 0) return chapters;
+          console.warn('[Chapters] VTT candidate fetched successfully but contained no parseable cues:', url);
+        } catch (err) {
+          console.error('VTT Fetch/Parse Error:', err, '- URL:', url);
+        }
+      }
+      return [];
+    }
+
+    function formatChapterTimestamp(seconds) {
+      if (!isFinite(seconds)) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    function showChapterLoadingState(isLoading) {
+      if (isLoading) {
+        refChapterLoading.textContent = 'Loading chapters...';
+        refChapterSection.classList.add('show');
+        refChapterLoading.style.display = 'block';
+        refChapterBar.classList.remove('show');
+      } else {
+        refChapterLoading.style.display = 'none';
+      }
+    }
+
+    // Shown when Column M is TRUE but Column N is empty, or the fetch/parse
+    // of Column N's VTT file didn't yield any usable chapters.
+    function showChapterNoFileMessage() {
+      refChapterLoading.textContent = 'No chapter file available.';
+      refChapterLoading.style.display = 'block';
+      refChapterBar.classList.remove('show');
+      refChapterSection.classList.add('show');
+    }
+
+    function renderChapterButtonStates() {
+      Array.from(refChapterBar.children).forEach((btn) => {
+        const idx = parseInt(btn.dataset.chapterIndex, 10);
+        btn.classList.toggle('active', selectedChapterIndices.has(idx));
+      });
+    }
+
+    function renderChapterButtons() {
+      refChapterBar.innerHTML = '';
+      if (detectedChapters.length === 0) {
+        refChapterBar.classList.remove('show');
+        refChapterSection.classList.remove('show');
+        return;
+      }
+      detectedChapters.forEach((chapter, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ref-chapter-btn';
+        btn.dataset.chapterIndex = index;
+        btn.textContent = `${chapter.title} (${formatChapterTimestamp(chapter.startTime)})`;
+        btn.addEventListener('click', () => onChapterButtonClick(index));
+        refChapterBar.appendChild(btn);
+      });
+      refChapterSection.classList.add('show');
+      refChapterBar.classList.add('show');
+      renderChapterButtonStates();
+    }
+
+    function applyChapterSelectionToLoop() {
+      if (selectedChapterIndices.size === 0) {
+        resetLoopRange();
+      } else {
+        const minIndex = Math.min(...selectedChapterIndices);
+        const maxIndex = Math.max(...selectedChapterIndices);
+        const duration = getRefDuration();
+        loopStartTime = Math.max(0, detectedChapters[minIndex].startTime);
+        loopEndTime = duration ? Math.min(duration, detectedChapters[maxIndex].endTime) : detectedChapters[maxIndex].endTime;
+      }
+      updateRefTrackUi();
+      if (isPreviewingRef) {
+        refVideo.currentTime = loopStartTime;
+        updateRefTimeDisplay(loopStartTime);
+      }
+    }
+
+    function onChapterButtonClick(index) {
+      if (selectedChapterIndices.has(index)) {
+        selectedChapterIndices.clear();
+      } else if (selectedChapterIndices.size === 0) {
+        selectedChapterIndices.add(index);
+      } else {
+        const minIndex = Math.min(...selectedChapterIndices);
+        const maxIndex = Math.max(...selectedChapterIndices);
+        if (index === minIndex - 1 || index === maxIndex + 1) {
+          selectedChapterIndices.add(index);
+        } else {
+          selectedChapterIndices.clear();
+          selectedChapterIndices.add(index);
+        }
+      }
+      renderChapterButtonStates();
+      applyChapterSelectionToLoop();
+    }
+
+    function clearChapterSelectionHighlight() {
+      if (selectedChapterIndices.size === 0) return;
+      selectedChapterIndices.clear();
+      renderChapterButtonStates();
+    }
+
+    function resetChapterState() {
+      chapterFetchToken++; // invalidate any in-flight fetch belonging to the previous clip
+      detectedChapters = [];
+      selectedChapterIndices.clear();
+      refChapterBar.innerHTML = '';
+      refChapterBar.classList.remove('show');
+      refChapterSection.classList.remove('show');
+      showChapterLoadingState(false);
+    }
+
+    // vttUrl is Column N (chapterVttUrl). shouldShow is Column M (showChapters).
+    async function startChapterDetection(shouldShow, vttSource) {
+      resetChapterState();
+      chapterShowFlagForClip = shouldShow;
+      if (!shouldShow) return;
+
+      const trimmedSource = (vttSource || '').toString().trim();
+      if (!trimmedSource) {
+        console.log('[Chapters] Column M enabled: true - Column N is empty, no VTT source to use.');
+        showChapterNoFileMessage();
+        return;
+      }
+
+      showChapterLoadingState(true);
+      const requestToken = chapterFetchToken;
+
+      let chapters;
+      if (/^webvtt/i.test(trimmedSource)) {
+        // Column N contains literal WebVTT text (starts with "WEBVTT")
+        // rather than a URL - parse it directly, no network fetch needed.
+        console.log('[Chapters] Column N contains inline WebVTT text - parsing directly (no fetch).');
+        chapters = parseVttText(trimmedSource);
+      } else {
+        chapters = await fetchAndParseChapterVtt(trimmedSource);
+      }
+
+      // The clip may have changed (or the screen may have been left) while
+      // this was in flight - a stale result must never overwrite whatever
+      // the user is looking at now.
+      if (requestToken !== chapterFetchToken) return;
+
+      if (chapters.length > 0) {
+        detectedChapters = chapters;
+        renderChapterButtons();
+        showChapterLoadingState(false);
+        console.log(`[Chapters] Column M enabled: true - parsed ${chapters.length} chapter(s) from Column N.`);
+      } else {
+        console.log('[Chapters] Column M enabled: true - Column N VTT source yielded no chapters.');
+        showChapterNoFileMessage();
+      }
+    }
+
     // Builds the list of clips a given user is allowed to pick from - purely
     // whatever the Assigned Clips column grants from the Video Library. If
     // that's empty, the hub is intentionally left blank (see the empty-state
@@ -2034,7 +2416,9 @@
           tag: clip.tag || '',
           icon: clip.icon || '',
           iconColor: clip.iconColor || '#ffffff',
-          referenceImage: clip.referenceImage || ''
+          referenceImage: clip.referenceImage || '',
+          showChapters: !!clip.showChapters,
+          chapterVttUrl: clip.chapterVttUrl || ''
         });
       });
 
@@ -2172,6 +2556,7 @@
       refVideo.setAttribute('poster', activeThumbnailUrl);
       applySupplementaryImage(clip.referenceImage);
       initializeReferenceVideoPlayback();
+      startChapterDetection(!!clip.showChapters, clip.chapterVttUrl);
 
       if (clip.noWatermark) {
         if (watermarkTimer) clearInterval(watermarkTimer);
@@ -2299,6 +2684,7 @@
       refAudioTrackBar.innerHTML = '';
       refAudioTrackBar.classList.remove('show');
       applySupplementaryImage('');
+      resetChapterState();
       closeImageZoomModal();
     }
 
