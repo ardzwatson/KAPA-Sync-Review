@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Kapa Sync Video Review (31.6)</title>
+  <title>Kapa Sync Video Review (31.7)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
@@ -239,6 +239,44 @@
     .ref-fs-playpause-btn.fade-out { opacity: 0; pointer-events: none; }
     #videoBox.ref-is-fullscreen .ref-fs-playpause-btn { display: flex; }
 
+    /* Full-screen progress bar overlay - only exists while actually in
+       fullscreen (it has no purpose/space in the normal inline layout, which
+       already has the full loop-range track below the video). Fades in/out
+       on the exact same timer as the center play/pause button, positioned
+       well clear of the corner volume/fullscreen-toggle controls. */
+    .ref-fs-progress-bar {
+      display: none;
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 56px;
+      /* Generous invisible hit area (well beyond the thin visible track) so
+         the bar is comfortably tappable/draggable with a finger. */
+      height: 28px;
+      align-items: center;
+      z-index: 25; /* above videoBox's own click-to-toggle-play/pause handler region */
+      opacity: 1;
+      transition: opacity 0.25s ease;
+      touch-action: none; /* this element owns horizontal drag - don't let the page try to scroll/pan during a scrub */
+      cursor: pointer;
+    }
+    .ref-fs-progress-bar.fade-out { opacity: 0; pointer-events: none; }
+    #videoBox.ref-is-fullscreen .ref-fs-progress-bar { display: flex; }
+    .ref-fs-progress-track {
+      width: 100%;
+      height: 5px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 3px;
+      overflow: hidden;
+      pointer-events: none; /* all pointer handling happens on the larger .ref-fs-progress-bar hit area */
+    }
+    .ref-fs-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3396ff, #007aff);
+      border-radius: 3px;
+    }
+
     /* Audio track switcher - Loop Practice clips only. Hidden until JS finds
        more than one HLS audio track for the current clip and populates it. */
     .ref-audio-track-bar {
@@ -279,6 +317,28 @@
       color: white;
       border-color: transparent;
     }
+
+    /* Playback speed selector - Loop Practice only. Native <select> so the
+       browser itself always shows the currently active speed on the control
+       (no extra state-tracking needed to keep the UI in sync). */
+    .ref-speed-select {
+      display: none;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 20;
+      font-family: 'Marcellus', serif;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 14px;
+      padding: 6px 10px;
+      cursor: pointer;
+      outline: none;
+    }
+    #appContent.loop-only-mode .ref-speed-select { display: block; }
 
     /* Supplementary reference image (Video Library column L) shown below the
        video player. Hidden entirely (no space reserved) when a clip has no
@@ -482,6 +542,7 @@
       .ref-fullscreen-btn { width: 30px !important; height: 30px !important; font-size: 14px !important; bottom: 6px !important; right: 6px !important; }
       .ref-volume-control { bottom: 6px !important; left: 6px !important; padding: 4px 8px !important; gap: 5px !important; }
       .ref-volume-slider { width: 50px !important; }
+      .ref-speed-select { top: 6px !important; right: 6px !important; font-size: 9px !important; padding: 4px 6px !important; }
     }
 
     /* Mobile landscape only (short-viewport phones held sideways): the vertical
@@ -490,9 +551,17 @@
        video's own fullscreen toggle (bottom-right) and volume control
        (bottom-left). Relocate both buttons to the top of the screen instead,
        as small horizontal pills, so they never overlap the video controls.
-       Scoped tightly by max-height so normal landscape tablets/desktops and
-       portrait phones are completely unaffected. */
-    @media screen and (orientation: landscape) and (max-height: 600px) {
+       Matched on EITHER a narrow max-width OR a short max-height (comma =
+       OR across the two media queries) rather than max-height alone: mobile
+       browsers report an unstable window height for roughly the first
+       second after load/rotation while the address-bar/toolbar chrome
+       finishes collapsing, which can flip a height-only query in and out of
+       matching and made this layout visibly "snap back" after ~1s. Width is
+       unaffected by that chrome-collapse animation, so anchoring on width
+       keeps the fix permanently applied on actual phones while still
+       covering short desktop windows via the max-height clause. */
+    @media screen and (orientation: landscape) and (max-width: 900px),
+           screen and (orientation: landscape) and (max-height: 600px) {
       #signOutBtn {
         top: env(safe-area-inset-top, 4px);
         left: 8px;
@@ -516,6 +585,19 @@
         font-size: 9px;
       }
       #changeClipBtn:hover { padding-right: 10px; background-color: rgba(0, 0, 0, 0.35); }
+
+      /* Full-Screen toggle stays bottom-right (mirrors Portrait) - reaffirmed
+         explicitly here since this block also touches nearby element
+         positions. Speed control is pushed down clear of the now-top-docked
+         Change Clip pill above it, instead of both sitting at the same
+         top-right spot and overlapping. */
+      .ref-fullscreen-btn { bottom: 6px !important; right: 6px !important; }
+      .ref-speed-select {
+        top: 40px !important;
+        right: 8px !important;
+        font-size: 9px !important;
+        padding: 4px 6px !important;
+      }
     }
 
     .box { position: relative; width: 100%; flex: 1 1 0%; height: 0; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
@@ -907,7 +989,7 @@
       <input type="text" id="gatePass" class="gate-input gate-input-masked" inputmode="text" placeholder="Access Key" autofocus>
       <button onclick="unlockPortal()" class="gate-btn" id="unlockBtn">Tahuna Te Ahi</button>
       <div id="gateError" class="gate-error">Loading security database... Please wait.</div>
-      <div class="gate-build-tag">31.6 Build</div>
+      <div class="gate-build-tag">31.7 Build</div>
     </div>
   </div>
 
@@ -950,7 +1032,15 @@
         </div>
         <button type="button" class="ref-fullscreen-btn" id="refFullscreenBtn" aria-label="Toggle fullscreen">⛶</button>
         <button type="button" class="ref-fs-playpause-btn" id="refFsPlayPauseBtn" aria-label="Play/Pause">▶</button>
+        <div class="ref-fs-progress-bar" id="refFsProgressBar"><div class="ref-fs-progress-track"><div class="ref-fs-progress-fill" id="refFsProgressFill"></div></div></div>
         <div class="ref-audio-track-bar" id="refAudioTrackBar"></div>
+        <select class="ref-speed-select" id="refSpeedSelect" aria-label="Playback speed">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+        </select>
       </div>
       
       <div class="box" id="cameraBox">
@@ -1026,7 +1116,7 @@
         <option value="1.0">100%</option>
       </select>
       <button id="downloadBtn" class="custom-png-btn">Save</button>
-      <div class="version-tag">31.6</div>
+      <div class="version-tag">31.7</div>
     </div>
   </div>
 
@@ -1068,6 +1158,101 @@
     // Read from column G, row 2 - used only for the mobile watermark's second line.
     let watermarkTagMobile = null;
 
+    // --- Data minimization: explicit column maps ---
+    // Only the columns named here are ever read out of a sheet row. Anything
+    // else present in a row exists momentarily in the raw parsed array while
+    // that row is processed, but is never copied into userDatabase/
+    // clipLibrary or otherwise retained - so any extra/internal columns
+    // someone adds to either tab later can't end up sitting in browser
+    // memory or getting rendered anywhere by accident.
+    const ACCESS_COLUMNS = {
+      PASSCODE: 0,
+      NAME: 1,
+      HLS_URL: 2,
+      THUMBNAIL_URL: 3,
+      THUMBNAIL_TIME: 4,
+      ASSIGNED_CLIPS: 5,
+      // column 6 (G) intentionally unused/reserved
+      WATERMARK_TAG: 7
+    };
+    const VIDEO_LIBRARY_COLUMNS = {
+      CLIP_ID: 0,
+      CLIP_NAME: 1,
+      HLS_URL: 2,
+      THUMBNAIL_URL: 3,
+      THUMBNAIL_TIME: 4,
+      IS_LOOP_ONLY: 6,
+      NO_WATERMARK: 7,
+      TAG: 8,
+      ICON: 9,
+      ICON_COLOR: 10,
+      REFERENCE_IMAGE: 11,
+      SHOW_CHAPTERS: 12,
+      CHAPTER_VTT_URL: 13
+    };
+
+    // --- URL sanitization (XSS / scheme-injection defense-in-depth) ---
+    // Every external asset URL that originates from sheet data (video
+    // streams, thumbnails, icons, reference images, chapter VTT links) is
+    // funneled through here at the point it's first parsed out of a row,
+    // before it's ever stored or used to populate a src/href/url(). Anything
+    // that isn't a well-formed https:// URL is rejected outright (returned
+    // as ''), which is treated identically to "this field was left blank".
+    // This stops a malicious/compromised sheet row from smuggling a
+    // javascript:, data:, or plain-http (mixed-content/unencrypted) URL into
+    // the DOM, and forces every external fetch/resource load onto HTTPS.
+    function sanitizeExternalUrl(rawUrl) {
+      if (!rawUrl) return '';
+      const trimmed = rawUrl.toString().trim();
+      if (!trimmed) return '';
+      let parsed;
+      try {
+        parsed = new URL(trimmed);
+      } catch (e) {
+        console.warn('[Security] Rejected malformed URL from sheet data:', trimmed);
+        return '';
+      }
+      if (parsed.protocol !== 'https:') {
+        console.warn('[Security] Rejected non-HTTPS URL from sheet data:', trimmed);
+        return '';
+      }
+      return parsed.href;
+    }
+
+    // --- Passcode hashing (client-side comparison only) ---
+    // HONESTY NOTE, because this matters: this is a static, backend-less
+    // client app. Nothing that ships in this file - including the pepper
+    // below - can be a true secret, since anyone can view the page source.
+    // What hashing DOES meaningfully improve: today, the Google Sheet's CSV
+    // export contains every passcode in plain text, so if that sheet's link
+    // is ever discovered, shared, cached, or indexed, every passcode leaks
+    // instantly and silently. With hashing, that same CSV only ever contains
+    // SHA-256 digests, so a leaked/discovered sheet link no longer directly
+    // hands out working login codes. It does NOT protect against a patient,
+    // targeted brute-force of one specific short/guessable passcode, because
+    // there's no server here to rate-limit attempts - that would require an
+    // actual backend. Keep the sheet's sharing settings as restrictive as
+    // possible and prefer longer, less-guessable passcodes regardless.
+    const APP_PASSCODE_PEPPER = 'kapa-sync-v31'; // not a secret - see note above
+
+    async function sha256Hex(text) {
+      const encoder = new TextEncoder();
+      const digestBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(text));
+      return Array.from(new Uint8Array(digestBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function hashPasscode(rawPasscode) {
+      const normalized = (rawPasscode || '').toString().trim().toLowerCase();
+      return sha256Hex(`${APP_PASSCODE_PEPPER}:${normalized}`);
+    }
+
+    // A sheet cell already holding a passcode's SHA-256 hash (the
+    // recommended, migrated state) is a 64-character hex string - anything
+    // else is treated as a legacy plaintext passcode still awaiting migration.
+    function looksLikeSha256Hex(value) {
+      return typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value.trim());
+    }
+
     let webAudioContext = null;
     let webAudioSourceNode = null;
     let webAudioGainNode = null;
@@ -1085,7 +1270,10 @@
     const videoBox = document.getElementById('videoBox');
     const refFullscreenBtn = document.getElementById('refFullscreenBtn');
     const refFsPlayPauseBtn = document.getElementById('refFsPlayPauseBtn');
+    const refFsProgressBar = document.getElementById('refFsProgressBar');
+    const refFsProgressFill = document.getElementById('refFsProgressFill');
     const refAudioTrackBar = document.getElementById('refAudioTrackBar');
+    const refSpeedSelect = document.getElementById('refSpeedSelect');
     const refSupplementaryImageContainer = document.getElementById('refSupplementaryImageContainer');
     const refSupplementaryImage = document.getElementById('refSupplementaryImage');
     const imageZoomModal = document.getElementById('imageZoomModal');
@@ -1370,10 +1558,12 @@
       videoBox.classList.toggle('ref-is-fullscreen', isRefFullscreen());
       if (isRefFullscreen()) {
         updateFsPlayPauseIcon();
+        updateFsProgressFill();
         resetFsPlayPauseFadeTimer();
       } else {
         clearTimeout(fsPlayPauseFadeTimeout);
         refFsPlayPauseBtn.classList.remove('fade-out');
+        refFsProgressBar.classList.remove('fade-out');
       }
     }
     document.addEventListener('fullscreenchange', updateFullscreenBtnIcon);
@@ -1401,18 +1591,23 @@
       else if (videoBox.webkitRequestFullscreen) videoBox.webkitRequestFullscreen();
     });
 
-    // --- Fullscreen center play/pause button ---
+    // --- Fullscreen center play/pause button + progress bar ---
     // Mirrors the .zoom-container fade-out pattern from the camera screen:
     // shown on load/tap/move, auto-hides after a short idle period while
-    // fullscreen playback is running.
+    // fullscreen playback is running. The progress bar fades in perfect
+    // lockstep with the play/pause button (same timer, same trigger events).
     let fsPlayPauseFadeTimeout = null;
 
     function resetFsPlayPauseFadeTimer() {
       if (!isRefFullscreen()) return;
       refFsPlayPauseBtn.classList.remove('fade-out');
+      refFsProgressBar.classList.remove('fade-out');
       clearTimeout(fsPlayPauseFadeTimeout);
       fsPlayPauseFadeTimeout = setTimeout(() => {
-        if (isRefFullscreen() && !refVideo.paused) refFsPlayPauseBtn.classList.add('fade-out');
+        if (isRefFullscreen() && !refVideo.paused) {
+          refFsPlayPauseBtn.classList.add('fade-out');
+          refFsProgressBar.classList.add('fade-out');
+        }
       }, 2500);
     }
 
@@ -1420,9 +1615,20 @@
       refFsPlayPauseBtn.textContent = refVideo.paused ? '▶' : '⏸';
     }
 
+    // Fills the progress bar based on the video's position within the
+    // current loop range (or the full clip if the range hasn't been
+    // narrowed) - kept in sync from the existing timeupdate handler below.
+    function updateFsProgressFill() {
+      const duration = getRefDuration();
+      if (!duration) { refFsProgressFill.style.width = '0%'; return; }
+      const pct = Math.max(0, Math.min(100, (refVideo.currentTime / duration) * 100));
+      refFsProgressFill.style.width = `${pct}%`;
+    }
+
     videoBox.addEventListener('click', (e) => {
       if (!isRefFullscreen()) return;
       if (e.target === refFsPlayPauseBtn || e.target === refFullscreenBtn) return;
+      if (refFsProgressBar.contains(e.target)) return;
       if (refVideo.paused) refVideo.play().catch(() => {});
       else refVideo.pause();
       resetFsPlayPauseFadeTimer();
@@ -1434,6 +1640,55 @@
       else refVideo.pause();
       resetFsPlayPauseFadeTimer();
     });
+
+    // --- Full-screen progress bar: click/drag/touch-scrub to seek ---
+    // Pointer Events (not native <input type=range>) so a single handler
+    // covers mouse, touch, and pen uniformly, matching the pattern already
+    // used for the inline loop-range track.
+    let fsProgressDragging = false;
+
+    function seekFsProgressToClientX(clientX) {
+      const duration = getRefDuration();
+      if (!duration) return;
+      const rect = refFsProgressBar.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      refVideo.currentTime = fraction * duration;
+      updateFsProgressFill();
+    }
+
+    refFsProgressBar.addEventListener('pointerdown', (e) => {
+      if (!isRefFullscreen()) return;
+      // Stop this from ever reaching videoBox's click-to-toggle-play/pause
+      // handler (belt-and-suspenders alongside the .contains() check above -
+      // pointerdown/pointerup and the click they generate are distinct event
+      // types, so both defenses matter).
+      e.preventDefault();
+      e.stopPropagation();
+      fsProgressDragging = true;
+      refFsProgressBar.setPointerCapture(e.pointerId);
+      seekFsProgressToClientX(e.clientX);
+      resetFsPlayPauseFadeTimer();
+    });
+
+    refFsProgressBar.addEventListener('pointermove', (e) => {
+      if (!fsProgressDragging) return;
+      seekFsProgressToClientX(e.clientX);
+      resetFsPlayPauseFadeTimer();
+    });
+
+    function endFsProgressDrag(e) {
+      if (!fsProgressDragging) return;
+      fsProgressDragging = false;
+      try { refFsProgressBar.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+    }
+    refFsProgressBar.addEventListener('pointerup', endFsProgressDrag);
+    refFsProgressBar.addEventListener('pointercancel', endFsProgressDrag);
+
+    // Extra safety net: a plain tap dispatches pointerdown/up AND a separate
+    // 'click' event afterward - make sure that click never bubbles up to
+    // videoBox's own click-to-toggle-play/pause handler either.
+    refFsProgressBar.addEventListener('click', (e) => { e.stopPropagation(); });
 
     videoBox.addEventListener('mousemove', () => { if (isRefFullscreen()) resetFsPlayPauseFadeTimer(); });
     videoBox.addEventListener('touchstart', () => { if (isRefFullscreen()) resetFsPlayPauseFadeTimer(); });
@@ -1635,36 +1890,53 @@
         // Row 1 is always the header row - never treated as data, regardless
         // of what the header cells actually say.
         const headerRow = rows[0] || [];
-        // Cell H1 (row 1, column H / index 7) drives the watermark's trailing tag.
-        if (headerRow[7]) watermarkTag = headerRow[7].trim();
-        // Cell H2 (row 2, column H) drives the mobile-only second watermark line.
+        // Cell H1 drives the watermark's trailing tag.
+        if (headerRow[ACCESS_COLUMNS.WATERMARK_TAG]) watermarkTag = headerRow[ACCESS_COLUMNS.WATERMARK_TAG].trim();
+        // Cell H2 drives the mobile-only second watermark line.
         const row2 = rows[1] || [];
-        if (row2[7]) watermarkTagMobile = row2[7].trim();
+        if (row2[ACCESS_COLUMNS.WATERMARK_TAG]) watermarkTagMobile = row2[ACCESS_COLUMNS.WATERMARK_TAG].trim();
 
-        rows.slice(1).forEach(columns => {
-          if (columns.every(v => v === '')) return; // blank row
-          const passcode = (columns[0] || '').toLowerCase();
-          const name = columns[1] || '';
-          const hlsUrl = (columns[2] || '').trim();
-          const thumbnailUrl = (columns[3] || '').trim();
-          const thumbnailTimeRaw = (columns[4] || '').trim();
+        // A plain for-of (rather than .forEach) so each row's passcode can be
+        // awaited through crypto.subtle's async hashing before moving on.
+        for (const columns of rows.slice(1)) {
+          if (columns.every(v => v === '')) continue; // blank row
+
+          const rawPasscodeCell = (columns[ACCESS_COLUMNS.PASSCODE] || '').trim();
+          const name = columns[ACCESS_COLUMNS.NAME] || '';
+          const hlsUrl = sanitizeExternalUrl((columns[ACCESS_COLUMNS.HLS_URL] || '').trim());
+          const thumbnailUrl = sanitizeExternalUrl((columns[ACCESS_COLUMNS.THUMBNAIL_URL] || '').trim());
+          const thumbnailTimeRaw = (columns[ACCESS_COLUMNS.THUMBNAIL_TIME] || '').trim();
           const thumbnailTime = thumbnailTimeRaw !== '' && !isNaN(parseFloat(thumbnailTimeRaw)) && parseFloat(thumbnailTimeRaw) >= 0
             ? parseFloat(thumbnailTimeRaw)
             : null;
           // Column F: comma-separated Clip IDs from the Video Library tab, or the
           // keyword ALL to grant every clip in the library. Blank = no hub access
           // beyond their own default clip (columns C-E above).
-          const assignedClipsRaw = (columns[5] || '').trim();
+          const assignedClipsRaw = (columns[ACCESS_COLUMNS.ASSIGNED_CLIPS] || '').trim();
           const assignedClipsAll = assignedClipsRaw.toUpperCase() === 'ALL';
           const assignedClips = assignedClipsAll
             ? []
             : assignedClipsRaw.split(',').map(id => id.trim().toLowerCase()).filter(id => id !== '');
 
-          if (!passcode || !name) return;
+          if (!rawPasscodeCell || !name) continue;
+
+          // Accept either a pre-hashed passcode (a 64-char SHA-256 hex
+          // digest - the migrated, recommended state) or a legacy plaintext
+          // passcode still sitting in the sheet. Either way, the in-memory
+          // lookup table (userDatabase) is always keyed by the HASH, never
+          // by plaintext - a plaintext cell just gets hashed here on read
+          // instead of at rest in the sheet.
+          let authKey;
+          if (looksLikeSha256Hex(rawPasscodeCell)) {
+            authKey = rawPasscodeCell.toLowerCase();
+          } else {
+            authKey = await hashPasscode(rawPasscodeCell);
+            console.warn(`[Security] Passcode for "${name}" is stored as plaintext in the sheet - replace column A with hashPasscode()'s output for that passcode to migrate it to a hash.`);
+          }
 
           // HLS URL/Thumbnail URL/Thumbnail Time are all optional per row - rows
           // that leave them blank fall back to the defaults.
-          userDatabase[passcode] = {
+          userDatabase[authKey] = {
             name,
             hlsUrl: hlsUrl || null,
             thumbnailUrl: thumbnailUrl || null,
@@ -1672,7 +1944,7 @@
             assignedClipsAll,
             assignedClips
           };
-        });
+        }
         if (gateError) { gateError.style.display = 'none'; gateError.innerText = "Incorrect passcode. Please try again."; }
       } catch (err) {
         if (gateError) { gateError.style.display = 'block'; gateError.innerText = "Security database offline."; }
@@ -1689,18 +1961,18 @@
         rows.slice(1).forEach((columns, index) => {
           const rowNum = index + 2; // sheet row number, for readable warnings
           if (columns.every(v => v === '')) return; // blank row
-          const clipId = (columns[0] || '').trim().toLowerCase();
-          const clipName = (columns[1] || '').trim();
-          const hlsUrl = (columns[2] || '').trim();
-          const thumbnailUrl = (columns[3] || '').trim();
-          const thumbnailTimeRaw = (columns[4] || '').trim();
+          const clipId = (columns[VIDEO_LIBRARY_COLUMNS.CLIP_ID] || '').trim().toLowerCase();
+          const clipName = (columns[VIDEO_LIBRARY_COLUMNS.CLIP_NAME] || '').trim();
+          const hlsUrl = sanitizeExternalUrl((columns[VIDEO_LIBRARY_COLUMNS.HLS_URL] || '').trim());
+          const thumbnailUrl = sanitizeExternalUrl((columns[VIDEO_LIBRARY_COLUMNS.THUMBNAIL_URL] || '').trim());
+          const thumbnailTimeRaw = (columns[VIDEO_LIBRARY_COLUMNS.THUMBNAIL_TIME] || '').trim();
           const thumbnailTime = thumbnailTimeRaw !== '' && !isNaN(parseFloat(thumbnailTimeRaw)) && parseFloat(thumbnailTimeRaw) >= 0
             ? parseFloat(thumbnailTimeRaw)
             : null;
 
           if (!clipId || !clipName || !hlsUrl) {
             console.warn(
-              `Video Library row ${rowNum} skipped - missing required field(s). ` +
+              `Video Library row ${rowNum} skipped - missing required field(s) (or the HLS URL failed HTTPS sanitization). ` +
               `Clip ID="${clipId}" Clip Name="${clipName}" HLS URL="${hlsUrl}". ` +
               `Expected column order: Clip ID / Clip Name / HLS URL / Thumbnail URL / Thumbnail Time.`
             );
@@ -1717,28 +1989,31 @@
           // controls, no camera/recording involved. Column H checkbox: skip the
           // watermark for this specific clip. Google Sheets exports checkboxes
           // as the literal text TRUE/FALSE.
-          const isLoopOnly = (columns[6] || '').trim().toUpperCase() === 'TRUE';
-          const noWatermark = (columns[7] || '').trim().toUpperCase() === 'TRUE';
+          const isLoopOnly = (columns[VIDEO_LIBRARY_COLUMNS.IS_LOOP_ONLY] || '').trim().toUpperCase() === 'TRUE';
+          const noWatermark = (columns[VIDEO_LIBRARY_COLUMNS.NO_WATERMARK] || '').trim().toUpperCase() === 'TRUE';
 
           // Column I: a short category/style tag shown on the clip's card and
           // used to populate the Te Ahi Kā tag filter. Column J: an icon image
-          // URL overlaid on the thumbnail. Column K: hex colour applied to
-          // both the icon (via the card's tag text) - lets each tag have a
-          // distinct at-a-glance colour without hardcoding a palette in code.
-          const tag = (columns[8] || '').trim();
-          const icon = (columns[9] || '').trim();
-          const iconColor = (columns[10] || '').trim();
+          // URL (currently parsed but not rendered anywhere in the UI).
+          // Column K: hex colour associated with the tag.
+          const tag = (columns[VIDEO_LIBRARY_COLUMNS.TAG] || '').trim();
+          const icon = sanitizeExternalUrl((columns[VIDEO_LIBRARY_COLUMNS.ICON] || '').trim());
+          const iconColor = (columns[VIDEO_LIBRARY_COLUMNS.ICON_COLOR] || '').trim();
           // Column L: an optional supplementary/reference PNG (e.g. hand
           // position diagram, lyrics sheet) shown below the video player for
-          // this clip. Blank = no image, container stays hidden.
-          const referenceImage = (columns[11] || '').trim();
+          // this clip. Blank = no image, container stays hidden. Stored as
+          // the raw (sanitized) sheet value - the Google Drive share-link ->
+          // direct-image-URL conversion happens later, at display time.
+          const referenceImage = sanitizeExternalUrl((columns[VIDEO_LIBRARY_COLUMNS.REFERENCE_IMAGE] || '').trim());
           // Column M: checkbox - only render the Chapter Selection UI on the
           // loop practice screen for clips that opt in.
-          const showChapters = parseSheetBoolean(columns[12]);
-          // Column N: Google Drive link to a .vtt file containing this
-          // clip's chapter markers. Fetched and parsed directly (rather than
-          // relying on chapters embedded in the HLS stream itself).
-          const chapterVttUrl = (columns[13] || '').trim();
+          const showChapters = parseSheetBoolean(columns[VIDEO_LIBRARY_COLUMNS.SHOW_CHAPTERS]);
+          // Column N: either a Google Drive link to a .vtt file, or literal
+          // inline WebVTT text - both are valid, so this is intentionally
+          // NOT run through sanitizeExternalUrl() here (a valid inline VTT
+          // string isn't a URL at all). The fetch path itself re-validates
+          // any URL it's given before using it.
+          const chapterVttUrl = (columns[VIDEO_LIBRARY_COLUMNS.CHAPTER_VTT_URL] || '').trim();
 
           clipLibrary[clipId] = {
             name: clipName,
@@ -1860,8 +2135,9 @@
       'en': '🔥 Original', 'eng': '🔥 Original', 'english': '🔥 Original',
       'mi': '🎤 Vocals', 'mri': '🎤 Vocals', 'mao': '🎤 Vocals', 'maori': '🎤 Vocals', 'māori': '🎤 Vocals',
       'ja': '🎶 Instrumental', 'jpn': '🎶 Instrumental', 'ja-jp': '🎶 Instrumental', 'japanese': '🎶 Instrumental',
-      'fr': '🎸 Guitar', 'fre': '🎸 Guitar', 'fra': '🎸 Guitar', '🎸 Guitar': '🎸 Guitar',
-      'es': '🪘 Rhythm', 'spa': '🪘 Rhythm', 'spanish': '🪘 Rhythm', 'español': '🪘 Rhythm'
+      'fr': '🎸 Guitar', 'fre': '🎸 Guitar', 'fra': '🎸 Guitar', 'french': '🎸 Guitar',
+      'es': '🪘 Rhythm', 'spa': '🪘 Rhythm', 'spanish': '🪘 Rhythm', 'español': '🪘 Rhythm',
+      'it': '▶️ Parakitihi', 'ita': '▶️ Parakitihi', 'italian': '▶️ Parakitihi', 'italiano': '▶️ Parakitihi'
     };
 
     // Fallback (track not in the map above): keep whatever hls.js reported
@@ -1912,7 +2188,42 @@
       highlightActiveAudioTrackButton(index);
     }
 
-    // --- Supplementary reference image (below the video player) ---
+    // --- Playback speed control (Loop Practice only) ---
+    // A native <select> is used deliberately: the browser itself always
+    // displays whichever <option> is currently selected, so the "visually
+    // indicate the active speed" requirement is satisfied for free with no
+    // extra state-syncing code needed.
+    refSpeedSelect.addEventListener('change', () => {
+      const speed = parseFloat(refSpeedSelect.value) || 1;
+      refVideo.playbackRate = speed;
+    });
+
+    // Resets both the video's actual rate and the dropdown's displayed value
+    // back to 1.0x - called whenever a new clip is loaded, so a fast/slow
+    // setting from a previous clip never silently carries over.
+    function resetPlaybackSpeed() {
+      refSpeedSelect.value = '1';
+      refVideo.playbackRate = 1;
+    }
+
+    // --- Spacebar shortcut: toggle Play/Pause on the active Loop Practice video ---
+    document.addEventListener('keydown', (e) => {
+      const isSpacebar = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+      if (!isSpacebar) return;
+
+      // Never hijack Space while the user is actually typing somewhere (a
+      // search box, the passcode field, the tag filter dropdown, etc.).
+      if (e.target && typeof e.target.matches === 'function' && e.target.matches('input, textarea, select')) return;
+
+      // Only meaningful on the Loop Practice screen, while it's actually
+      // visible, and not while the full-screen image zoom modal has focus.
+      if (!currentClipIsLoopOnly) return;
+      if (document.getElementById('appContent').style.display === 'none') return;
+      if (imageZoomModal.classList.contains('show')) return;
+
+      e.preventDefault(); // stop the page from scrolling on Space
+      previewRefBtn.click(); // reuses the exact same play/pause state machine as tapping the button
+    });
 
     // Converts a Google Drive "view" share link into a direct, hotlinkable
     // image URL. Handles both the common /file/d/FILE_ID/view form and the
@@ -1952,7 +2263,7 @@
     // for this clip) - in every one of those cases the container stays
     // fully hidden via CSS (display: none), reserving no space at all.
     function applySupplementaryImage(url) {
-      const formattedUrl = formatGoogleDriveImageUrl(url);
+      const formattedUrl = sanitizeExternalUrl(formatGoogleDriveImageUrl(url));
       if (formattedUrl) {
         refSupplementaryImage.src = formattedUrl;
         refSupplementaryImageContainer.classList.add('show');
@@ -2127,7 +2438,13 @@
           `https://lh3.googleusercontent.com/d/${fileId}`
         ];
       } else {
-        baseCandidates = [trimmed];
+        // Not a recognizable Drive link - this branch is only ever reached
+        // for an actual URL (the caller already routes literal inline VTT
+        // text to parseVttText() directly, never here), so enforce the same
+        // https-only sanitization as every other externally-sourced URL in
+        // this app before it's used as a fetch/proxy target.
+        const sanitized = sanitizeExternalUrl(trimmed);
+        baseCandidates = sanitized ? [sanitized] : [];
       }
 
       const withProxies = [];
@@ -2533,6 +2850,7 @@
       activeHlsUrl = clip.hlsUrl;
       activeThumbnailUrl = clip.thumbnailUrl;
       activeAlignTime = clip.thumbnailTime;
+      resetPlaybackSpeed();
 
       videoHubScreen.classList.remove('show');
       document.getElementById('appContent').style.display = 'flex';
@@ -2570,6 +2888,7 @@
       activeHlsUrl = clip.hlsUrl;
       activeThumbnailUrl = clip.thumbnailUrl;
       activeAlignTime = clip.thumbnailTime;
+      resetPlaybackSpeed();
 
       videoHubScreen.classList.remove('show');
       document.getElementById('appContent').style.display = 'flex';
@@ -2632,7 +2951,11 @@
     async function unlockPortal() {
       const passInput = document.getElementById('gatePass');
       const unlockBtn = document.getElementById('unlockBtn');
-      const input = passInput ? passInput.value.trim().toLowerCase() : "";
+      const rawInput = passInput ? passInput.value.trim() : "";
+      // Clear the plaintext value out of the DOM as soon as it's been read,
+      // regardless of whether the login succeeds - it never needs to sit in
+      // the input field any longer than the moment of submission.
+      if (passInput) passInput.value = '';
 
       // Wait for both sheets to finish loading before doing anything - checking
       // the passcode or building the hub against a not-yet-loaded userDatabase/
@@ -2645,17 +2968,20 @@
       unlockBtn.disabled = false;
       if (gateError) gateError.style.display = 'none';
 
-      const userRecord = userDatabase[input];
+      // userDatabase is keyed by SHA-256 hash (see fetchAccessDatabase), so
+      // the entered value is hashed here and compared hash-to-hash - the raw
+      // passcode itself is never used as a lookup key or retained afterward.
+      const authKey = await hashPasscode(rawInput);
+      const userRecord = userDatabase[authKey];
       if (userRecord) {
         authorizedUser = userRecord.name;
-        currentPasscode = input;
+        currentPasscode = authKey;
 
         document.getElementById('passwordGate').style.display = 'none';
 
         showVideoHub(userRecord);
       } else {
         if (gateError) { gateError.style.display = 'block'; gateError.innerText = 'Incorrect passcode. Please try again.'; }
-        if (passInput) passInput.value = '';
       }
     }
 
@@ -2705,11 +3031,14 @@
       document.getElementById('appContent').classList.remove('loop-only-mode');
       videoBox.classList.remove('ref-is-fullscreen');
       refFsPlayPauseBtn.classList.remove('fade-out');
+      refFsProgressBar.classList.remove('fade-out');
+      refFsProgressFill.style.width = '0%';
       refAudioTrackBar.innerHTML = '';
       refAudioTrackBar.classList.remove('show');
       applySupplementaryImage('');
       resetChapterState();
       closeImageZoomModal();
+      resetPlaybackSpeed();
     }
 
     function handleSignOut() {
@@ -2723,6 +3052,9 @@
 
       viewfinder.pause();
       viewfinder.srcObject = null;
+
+      authorizedUser = '';
+      currentPasscode = '';
 
       signOutBtn.style.display = 'none';
       changeClipBtn.style.display = 'none';
@@ -2840,7 +3172,14 @@
       if (loopOnlyAwaitingFirstPlay) {
         // First real tap on a staged Loop Practice screen - start playback
         // without resetting the loop range (preserves any pre-play handle
-        // adjustments the user already made).
+        // adjustments the user already made). If duration wasn't known yet
+        // when the screen was staged (a very fast tap could beat
+        // loadedmetadata), loopEndTime may still be 0 here - make sure it
+        // reflects the full clip before playback starts, so the default
+        // loop always spans the whole clip rather than looping at 0:00.
+        if (getRefDuration() && loopEndTime <= 0) {
+          resetLoopRange();
+        }
         loopOnlyAwaitingFirstPlay = false;
         previewRefBtn.classList.remove('ready-to-play');
         previewRefBtn.classList.add('previewing');
@@ -3339,6 +3678,7 @@
           updateRefTrackUi();
           updateRefTimeDisplay(refVideo.currentTime);
         }
+        if (isRefFullscreen()) updateFsProgressFill();
         // Loop Practice clips always loop regardless of range narrowing;
         // camera-flow Preview Ref only loops once the user has actually
         // narrowed the range - default behavior there is to play straight
@@ -3346,6 +3686,20 @@
         if ((currentClipIsLoopOnly || isLoopRangeNarrowed()) && refVideo.currentTime >= loopEndTime - 0.05) {
           refVideo.currentTime = loopStartTime;
         }
+      }
+    });
+
+    // Safety net for auto-looping: HLS streams in particular can fire their
+    // native 'ended' event without an intervening 'timeupdate' ever having
+    // crossed the loopEndTime-0.05 threshold above (the last timeupdate tick
+    // before the stream's true end can land just short of it) - when that
+    // happens the video just naturally pauses at the end instead of looping.
+    // Explicitly catching 'ended' here guarantees the loop always continues
+    // seamlessly, with no dependency on exactly when the last timeupdate fired.
+    refVideo.addEventListener('ended', () => {
+      if (isPreviewingRef && !isRecordingMode && !isReviewMode) {
+        refVideo.currentTime = loopStartTime;
+        refVideo.play().catch(() => {});
       }
     });
 
