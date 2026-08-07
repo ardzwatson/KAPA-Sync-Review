@@ -4583,7 +4583,7 @@ Ki a Te Moremore-o-te-rangi e!</p>
     // (not just on the next play/pause event) closes the gap where a
     // backgrounded auto-advance could otherwise land on a session whose
     // action handlers had gone stale, which is what could make the OS UI
-    // (and therefore playback) look like it "randomly" stopped at that
+    // (and therefore playback) look like it "randomly"  at that
     // track's end instead of continuing.
     audioPlayerElement.addEventListener('ended', () => {
       reassertMediaSessionHandlers();
@@ -4909,7 +4909,7 @@ Ki a Te Moremore-o-te-rangi e!</p>
       if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
       if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
       gameRunning = false;
-      triviaLyricLine.textContent = 'Game stopped.\nSelect a mode and press Begin!';
+      triviaLyricLine.innerHTML = 'Game stopped.<br>Select a mode and press Begin!';
       triviaTimer.textContent = '00:00';
       renderTriviaHintButtons();
     }
