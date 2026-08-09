@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <script>
+    (function() {
+      const bunnyUrl = "https://tat-app.b-cdn.net"; // Replace with your exact Bunny URL
+      
+      let path = window.location.pathname;
+      
+      // If on github.io, remove the first segment (/reponame)
+      if (window.location.hostname.endsWith("github.io")) {
+        path = path.replace(/^\/[^\/]+/, "");
+      }
+      
+      // Ensure path starts with /
+      if (!path.startsWith("/")) {
+        path = "/" + path;
+      }
+
+      const target = bunnyUrl + path + window.location.search + window.location.hash;
+      window.location.replace(target);
+    })();
+  </script>
+</head>
+<body>
+  <p>Redirecting... <a id="redir-link" href="#">Click here if not redirected.</a></p>
+  <script>
+    document.getElementById("redir-link").href = "https://tat-app.b-cdn.net";
+  </script>
+</body>
+</html>
